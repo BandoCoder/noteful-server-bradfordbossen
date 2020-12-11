@@ -24,7 +24,7 @@ describe("Noteful Endpoints", function () {
 
   //ENDPOINT TESTS
   describe("GET api/notes", () => {
-    context(`Given no articles`, () => {
+    context(`Given no notes`, () => {
       it(`responsae with 200 and an empty list`, () => {
         return supertest(app).get("/api/notes").expect(200, []);
       });
