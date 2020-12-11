@@ -1,5 +1,5 @@
 {
-  "name": "express-boilerplate",
+  "name": "noteful-server",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -23,6 +23,7 @@
     "knex": "^0.21.12",
     "morgan": "^1.10.0",
     "pg": "^8.5.1",
+    "router": "^1.3.5",
     "xss": "^1.0.8"
   },
   "devDependencies": {
