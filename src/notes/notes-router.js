@@ -15,12 +15,14 @@ const serializeNote = (note) => ({
   folder_id: note.folder_id,
 });
 
-notesRouter.route("/").get((req, res, next) => {
-  NotesService.getAllNotes(req.app.get("db"))
-    .then((notes) => {
-      res.status(200).json(notes);
-    })
-    .catch(next);
-});
+notesRouter // Notes endpoint
+  .route("/")
+  .get((req, res, next) => {
+    NotesService.getAllNotes(req.app.get("db"))
+      .then((notes) => {
+        res.status(200).json(notes.map(serializeNote));
+      })
+      .catch(next);
+  });
 
 module.exports = notesRouter;
