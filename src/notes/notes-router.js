@@ -2,6 +2,7 @@ const path = require("path");
 const express = require("express");
 const xss = require("xss");
 const NotesService = require("./notes-service");
+const { json } = require("express");
 
 const notesRouter = express.Router();
 const jsonParser = express.json();
@@ -62,6 +63,32 @@ notesRouter
   })
   .get((req, res, next) => {
     res.json(serializeNote(res.note));
+  })
+  .delete((req, res, next) => {
+    NotesService.removeNote(req.app.get("db"), req.params.id)
+      .then(() => {
+        res.status(204).end();
+      })
+      .catch(next);
+  })
+  .patch(jsonParser, (req, res, next) => {
+    const { name, content, folder_id } = req.body;
+    const noteToUpdate = { name, content, folder_id };
+
+    const numberOfValues = Object.values(noteToUpdate).filter(Boolean).length;
+    if (numberOfValues === 0) {
+      return res.status(400).json({
+        error: {
+          message: `Request must contain a valid datatype either name, content, or folder_id`,
+        },
+      });
+    }
+
+    NotesService.editNote(req.app.get("db"), req.params.id, noteToUpdate)
+      .then((numRowsAffected) => {
+        return res.status(204).end();
+      })
+      .catch(next);
   });
 
 module.exports = notesRouter;

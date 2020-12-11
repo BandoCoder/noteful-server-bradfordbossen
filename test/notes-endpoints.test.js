@@ -202,4 +202,113 @@ describe("Noteful Endpoints", function () {
         });
     });
   });
+  describe(`DELETE /api/notes/:id`, () => {
+    context(`Given no notes`, () => {
+      it(`responds with 404`, () => {
+        const id = 5555;
+        return supertest(app)
+          .delete(`/api/notes/${id}`)
+          .expect(404, { error: { message: "Note not found" } });
+      });
+    });
+    context(`Given notes are inside the database`, () => {
+      const testFolders = makeFoldersArray();
+      const testNotes = makeNotesArray();
+      beforeEach("insert notes", () => {
+        return db
+          .into("noteful_folders")
+          .insert(testFolders)
+          .then(() => {
+            return db.into("noteful_notes").insert(testNotes);
+          });
+      });
+      it(`responds with 204 and removes note`, () => {
+        const idToRemove = 1;
+        const expectedNotes = testNotes.filter((note) => {
+          return note.id !== idToRemove;
+        });
+        return supertest(app)
+          .delete(`/api/notes/${idToRemove}`)
+          .expect(204)
+          .then((res) => {
+            return supertest(app).get(`/api/notes`).expect(expectedNotes);
+          });
+      });
+    });
+  });
+  describe(`PATCH /api/notes/:id`, () => {
+    context(`Given no articles`, () => {
+      it(`responds with 404`, () => {
+        const id = 123456;
+        return supertest(app)
+          .delete(`/api/notes/${id}`)
+          .expect(404, { error: { message: `Note not found` } });
+      });
+    });
+
+    context(`Given notes exist within database`, () => {
+      const testFolders = makeFoldersArray();
+      const testNotes = makeNotesArray();
+      beforeEach("insert notes", () => {
+        return db
+          .into("noteful_folders")
+          .insert(testFolders)
+          .then(() => {
+            return db.into("noteful_notes").insert(testNotes);
+          });
+      });
+      it(`responds with 204 and updates the note`, () => {
+        const idToUpdate = 3;
+        const updateNote = {
+          name: "updated",
+          content: "content updated",
+          folder_id: 2,
+        };
+        const expectedNote = {
+          ...testNotes[idToUpdate - 1],
+          ...updateNote,
+        };
+        return supertest(app)
+          .patch(`/api/notes/${idToUpdate}`)
+          .send(updateNote)
+          .expect(204)
+          .then((res) => {
+            return supertest(app)
+              .get(`/api/notes/${idToUpdate}`)
+              .expect(expectedNote);
+          });
+      });
+      it(`responds with 400 when no required fields supplied`, () => {
+        const idToUpdate = 2;
+        return supertest(app)
+          .patch(`/api/notes/${idToUpdate}`)
+          .send({ beware: "oblivion is at hand" })
+          .expect(400, {
+            error: {
+              message: `Request must contain a valid datatype either name, content, or folder_id`,
+            },
+          });
+      });
+      it(`responds with 204 when updating only a subset of fields`, () => {
+        const idToUpdate = 3;
+        const updateNote = {
+          content: "WAKA WAKA",
+        };
+        const expectedNote = {
+          ...testNotes[idToUpdate - 1],
+          ...updateNote,
+        };
+        return supertest(app)
+          .patch(`/api/notes/${idToUpdate}`)
+          .send({
+            ...updateNote,
+            fieldToIgnore: "shold not be in GET response",
+          })
+          .expect(204)
+          .then((res) =>
+            supertest(app).get(`/api/notes/${idToUpdate}`).expect(expectedNote)
+          );
+      });
+    });
+  });
 });
