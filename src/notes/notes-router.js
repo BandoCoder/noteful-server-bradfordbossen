@@ -25,4 +25,23 @@ notesRouter // Notes endpoint
       .catch(next);
   });
 
+notesRouter
+  .route("/:id")
+  .all((req, res, next) => {
+    NotesService.getById(req.app.get("db"), req.params.id)
+      .then((note) => {
+        if (!note) {
+          return res.status(404).json({
+            error: { message: `Note not found` },
+          });
+        }
+        res.note = note;
+        next();
+      })
+      .catch(next);
+  })
+  .get((req, res, next) => {
+    res.json(serializeNote(res.note));
+  });
+
 module.exports = notesRouter;
