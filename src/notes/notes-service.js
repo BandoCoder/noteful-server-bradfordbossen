@@ -6,7 +6,8 @@ const NotesService = {
     return knex
       .insert(newNote)
       .into("noteful_notes")
-      .returning((rows) => {
+      .returning("*")
+      .then((rows) => {
         return rows[0];
       });
   },

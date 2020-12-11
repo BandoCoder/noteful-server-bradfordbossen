@@ -23,6 +23,26 @@ notesRouter // Notes endpoint
         res.status(200).json(notes.map(serializeNote));
       })
       .catch(next);
+  })
+  .post(jsonParser, (req, res, next) => {
+    const { name, content, folder_id } = req.body;
+    const newNote = { name, content, folder_id };
+
+    for (const [key, value] of Object.entries(newNote)) {
+      if (value == null) {
+        return res.status(400).json({
+          error: { message: `Missing '${key}' in request body` },
+        });
+      }
+    }
+    NotesService.insertNote(req.app.get("db"), newNote)
+      .then((note) => {
+        res
+          .status(201)
+          .location(`/api/notes/${note.id}`)
+          .json(serializeNote(note));
+      })
+      .catch(next);
   });
 
 notesRouter

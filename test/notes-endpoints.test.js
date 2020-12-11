@@ -18,6 +18,8 @@ describe("Noteful Endpoints", function () {
     app.set("db", db);
   });
 
+  after("disconnect from db", () => db.destroy());
+
   before("clean the table", () =>
     db.raw("TRUNCATE noteful_folders, noteful_notes RESTART IDENTITY CASCADE")
   );
@@ -25,8 +27,6 @@ describe("Noteful Endpoints", function () {
   afterEach("cleanup", () =>
     db.raw("TRUNCATE noteful_folders, noteful_notes RESTART IDENTITY CASCADE")
   );
-
-  after("disconnect from db", () => db.destroy());
 
   //ENDPOINT TESTS
   describe("GET api/notes", () => {
@@ -47,7 +47,7 @@ describe("Noteful Endpoints", function () {
           });
       });
       it("responds with 200 and all of the articles", () => {
-        supertest(app).get("/api/notes").expect(200, testNotes);
+        return supertest(app).get("/api/notes").expect(200, testNotes);
       });
     });
     context(`Given XSS attack note`, () => {
@@ -99,11 +99,107 @@ describe("Noteful Endpoints", function () {
             return db.into("noteful_notes").insert(testNotes);
           });
       });
-      it("responds 200 and specific article", () => {
+      it("responds 200 and specific note", () => {
         const id = 2;
         const expectedNote = testNotes[id - 1];
         return supertest(app).get(`/api/notes/${id}`).expect(200, expectedNote);
       });
+    });
+
+    context(`Given an xss attack note`, () => {
+      const testFolders = makeFoldersArray();
+      const maliciousNote = {
+        id: 911,
+        name: 'Naughty naughty very naughty <script>alert("xss");</script>',
+        content: `Bad image <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">. But not <strong>all</strong> bad.`,
+        date_modified: "2029-02-22T16:28:32.615Z",
+        folder_id: 1,
+      };
+      beforeEach("Insert Malicious Note", () => {
+        return db
+          .into("noteful_folders")
+          .insert(testFolders)
+          .then(() => {
+            return db.into("noteful_notes").insert([maliciousNote]);
+          });
+      });
+      it("removes XSS attack content", () => {
+        return supertest(app)
+          .get(`/api/notes/${maliciousNote.id}`)
+          .expect(200)
+          .expect((res) => {
+            expect(res.body.name).to.eql(xss(maliciousNote.name));
+            expect(res.body.content).to.eql(xss(maliciousNote.content));
+          });
+      });
+    });
+  });
+  describe(`POST /api/notes`, () => {
+    const testFolders = makeFoldersArray();
+    beforeEach("insert folders", () => {
+      return db.into("noteful_folders").insert(testFolders);
+    });
+
+    it(`Creates note, responds with 201 and new note`, () => {
+      const newNote = {
+        name: "Figs",
+        content: "Figs Figs Figs Figs Figs Figs Figs Figs Figs ",
+        folder_id: 1,
+      };
+      return supertest(app)
+        .post("/api/notes")
+        .send(newNote)
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.name).to.eql(newNote.name);
+          expect(res.body.content).to.eql(newNote.content);
+          expect(res.body.folder_id).to.eql(newNote.folder_id);
+          expect(res.body).to.have.property("id");
+          expect(res.headers.location).to.eql(`/api/notes/${res.body.id}`);
+          const expected = new Intl.DateTimeFormat("en-US").format(new Date());
+          const actual = new Intl.DateTimeFormat("en-US").format(
+            new Date(res.body.date_modified)
+          );
+          expect(actual).to.eql(expected);
+        })
+        .then((res) =>
+          supertest(app).get(`/api/notes/${res.body.id}`).expect(res.body)
+        );
+    });
+    const requiredFields = ["name", "content", "folder_id"];
+    requiredFields.forEach((field) => {
+      const newNote = {
+        name: "Figs",
+        content: "Figs Figs Figs Figs Figs Figs Figs Figs Figs ",
+        folder_id: 1,
+      };
+
+      it(`responds with 400 and error when the '${field}' is missing`, () => {
+        delete newNote[field];
+        return supertest(app)
+          .post("/api/notes")
+          .send(newNote)
+          .expect(400, {
+            error: { message: `Missing '${field}' in request body` },
+          });
+      });
+    });
+    it("removes XSS attack content from response", () => {
+      const maliciousNote = {
+        id: 911,
+        name: 'Naughty naughty very naughty <script>alert("xss");</script>',
+        content: `Bad image <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">. But not <strong>all</strong> bad.`,
+        date_modified: "2029-02-22T16:28:32.615Z",
+        folder_id: 1,
+      };
+      return supertest(app)
+        .post(`/api/notes`)
+        .send(maliciousNote)
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.name).to.eql(xss(maliciousNote.name));
+          expect(res.body.content).to.eql(xss(maliciousNote.content));
+        });
     });
   });
 });
