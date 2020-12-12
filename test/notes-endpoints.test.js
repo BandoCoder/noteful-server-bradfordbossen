@@ -237,7 +237,7 @@ describe("Noteful Endpoints", function () {
     });
   });
   describe(`PATCH /api/notes/:id`, () => {
-    context(`Given no articles`, () => {
+    context(`Given no notes`, () => {
       it(`responds with 404`, () => {
         const id = 123456;
         return supertest(app)
