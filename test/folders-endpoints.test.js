@@ -27,4 +27,28 @@ describe(`Folders endpoints`, () => {
   afterEach("cleanup", () =>
     db.raw("TRUNCATE noteful_folders, noteful_notes RESTART IDENTITY CASCADE")
   );
+
+  //ENDPOINTS
+  describe(`GET api/folders`, () => {
+    context(`Given no folders`, () => {
+      it(`responds with 200 and an empty list`, () => {
+        return supertest(app).get("/api/folders").expect(200, []);
+      });
+    });
+    context(`Given folders in the database`, () => {
+      const testNotes = makeNotesArray();
+      const testFolders = makeFoldersArray();
+      beforeEach("insert notes", () => {
+        return db
+          .into("noteful_folders")
+          .insert(testFolders)
+          .then(() => {
+            return db.into("noteful_notes").insert(testNotes);
+          });
+      });
+      it("responds with 200 and all of the articles", () => {
+        return supertest(app).get("/api/folders").expect(200, testFolders);
+      });
+    });
+  });
 });
