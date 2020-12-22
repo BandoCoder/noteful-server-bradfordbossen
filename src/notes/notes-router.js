@@ -66,9 +66,7 @@ notesRouter
   })
   .delete((req, res, next) => {
     NotesService.removeNote(req.app.get("db"), req.params.id)
-      .then(() => {
-        res.status(204).end();
-      })
+      .then(() => res.status(204).end())
       .catch(next);
   })
   .patch(jsonParser, (req, res, next) => {
